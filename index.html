@@ -27,7 +27,8 @@
     h1 { font-size: 2.5rem; margin: 0 0 8px; }
     p { margin: 0; opacity: .7; }
     .guide { margin-top: 20px; font-size: .95rem; line-height: 1.5; opacity: .85; }
-    #install, #external { margin-top: 24px; padding: 12px 20px; font-size: 1rem; border: 0; border-radius: 12px; background: #4f46e5; color: #fff; }
+    #install, #chrome { margin-top: 24px; padding: 12px 20px; font-size: 1rem; border: 0; border-radius: 12px; background: #4f46e5; color: #fff; }
+    #chrome.sub { background: transparent; color: inherit; border: 1px solid currentColor; opacity: .7; }
   </style>
 </head>
 <body>
@@ -36,79 +37,79 @@
     <p>PWA 테스트 페이지입니다.</p>
     <button id="install" hidden>홈 화면에 추가</button>
     <p id="guide" class="guide" hidden></p>
-    <button id="external" hidden>외부 브라우저로 열기</button>
+    <button id="chrome" class="sub" hidden>Chrome으로 열기</button>
   </main>
   <script>
-    // 인앱 브라우저(카카오톡 등)는 PWA 설치를 지원하지 않으므로 외부 브라우저로 보낸다.
-    (function () {
-      const ua = navigator.userAgent;
-      const isAndroid = /Android/i.test(ua);
-      const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      const isKakao = /KAKAOTALK/i.test(ua);
-      // 안드로이드에서 진짜 Chrome이 아니면(웹뷰·네이버·삼성인터넷 등) 모두 인앱으로 간주
-      const isAndroidChrome = isAndroid && /Chrome\//.test(ua) &&
-        !/; wv\)|Version\/\d|NAVER|KAKAOTALK|SamsungBrowser|Whale|EdgA|OPR|DaumApps|Instagram|FB/i.test(ua);
-      const isInApp = isKakao || (isAndroid && !isAndroidChrome) ||
-        /NAVER\(inapp|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp/i.test(ua);
-      if (new URLSearchParams(location.search).has('debug')) {
-        const d = document.createElement('pre');
-        d.style.cssText = 'white-space:pre-wrap;font-size:11px;text-align:left;opacity:.6';
-        d.textContent = ua + '\ninApp=' + isInApp;
-        document.querySelector('main').append(d);
-      }
-      const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-      const guide = document.getElementById('guide');
-      const extBtn = document.getElementById('external');
-      const url = location.href;
-
-      function openExternal() {
-        // 안드로이드: 기본 브라우저(네이버 앱 등)가 아니라 Chrome을 직접 지정해서 연다.
-        // Chrome이 없으면 browser_fallback_url로 기본 브라우저에서 열림.
-        if (isAndroid) {
-          location.href = 'intent://' + url.replace(/^https?:\/\//, '') +
-            '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' +
-            encodeURIComponent(url) + ';end';
-        } else if (isKakao) {
-          location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url);
-        }
-      }
-
-      if (isInApp) {
-        guide.hidden = false;
-        guide.textContent = isIOS
-          ? '앱 설치는 Safari에서만 가능해요. 오른쪽 아래 ⋯ 메뉴에서 "다른 브라우저로 열기"를 눌러주세요.'
-          : '앱 설치는 Chrome에서만 가능해요. 아래 버튼을 눌러 Chrome으로 열어주세요.';
-        if (isKakao || isAndroid) {
-          extBtn.hidden = false;
-          extBtn.addEventListener('click', openExternal);
-          openExternal(); // 자동 이동 시도
-        }
-      } else if (isIOS && !isStandalone) {
-        // iOS Safari는 설치 버튼 이벤트가 없어 안내 문구로 대체
-        guide.hidden = false;
-        guide.textContent = '공유 버튼(□↑) → "홈 화면에 추가"를 누르면 앱으로 설치돼요.';
-      }
-    })();
-
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }));
     }
-    // Android Chrome: 설치 버튼 노출
-    let deferredPrompt;
-    const btn = document.getElementById('install');
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      btn.hidden = false;
-    });
-    btn.addEventListener('click', async () => {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
-      deferredPrompt = null;
-      btn.hidden = true;
-    });
-    window.addEventListener('appinstalled', () => { btn.hidden = true; });
+
+    (function () {
+      const ua = navigator.userAgent;
+      const url = location.href;
+      const isAndroid = /Android/i.test(ua);
+      const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const isKakao = /KAKAOTALK/i.test(ua);
+      const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+      const installBtn = document.getElementById('install');
+      const guide = document.getElementById('guide');
+      const chromeBtn = document.getElementById('chrome');
+      const showGuide = (text) => { guide.textContent = text; guide.hidden = false; };
+
+      if (new URLSearchParams(location.search).has('debug')) {
+        const d = document.createElement('pre');
+        d.style.cssText = 'white-space:pre-wrap;font-size:11px;text-align:left;opacity:.6';
+        d.textContent = ua;
+        document.querySelector('main').append(d);
+      }
+
+      if (isStandalone) return; // 이미 설치된 앱으로 실행 중
+
+      // 카카오톡 인앱 브라우저: 사용자의 기본 브라우저로 넘김 (특정 브라우저 강제 X)
+      if (isKakao) {
+        location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url);
+        showGuide('오른쪽 아래 ⋮ 메뉴에서 "다른 브라우저로 열기"를 눌러주세요.');
+        return;
+      }
+
+      // 설치 버튼을 지원하는 브라우저(Chrome, 삼성 인터넷, Edge 등)
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installBtn.hidden = false;
+        guide.hidden = true;
+        chromeBtn.hidden = true;
+      });
+      installBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        installBtn.hidden = true;
+      });
+      window.addEventListener('appinstalled', () => { installBtn.hidden = true; });
+
+      if (isIOS) {
+        showGuide('공유 버튼(□↑) → "홈 화면에 추가"를 누르면 앱으로 설치돼요.');
+        return;
+      }
+
+      // 설치 이벤트가 안 오는 브라우저(네이버 앱 등): 그 브라우저 메뉴 안내 + 원하면 Chrome으로 열기
+      setTimeout(() => {
+        if (deferredPrompt || !installBtn.hidden) return;
+        showGuide('이 브라우저는 설치 버튼을 지원하지 않아요. 브라우저 메뉴에서 "홈 화면에 추가"를 눌러주세요.' +
+          (isAndroid ? ' Chrome에서 열면 앱으로 설치할 수도 있어요.' : ''));
+        if (isAndroid) {
+          chromeBtn.hidden = false;
+          chromeBtn.onclick = () => {
+            location.href = 'intent://' + url.replace(/^https?:\/\//, '') +
+              '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' +
+              encodeURIComponent(url) + ';end';
+          };
+        }
+      }, 2500);
+    })();
   </script>
 </body>
 </html>
