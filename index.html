@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>PWA Test</title>
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <!-- iOS 홈 화면 지원 -->
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="PWA Test">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <style>
+    :root { color-scheme: light dark; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: grid; place-items: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      background: #f5f5ff; color: #1e1b4b;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    @media (prefers-color-scheme: dark) { body { background: #111027; color: #e0e7ff; } }
+    main { text-align: center; padding: 24px; }
+    h1 { font-size: 2.5rem; margin: 0 0 8px; }
+    p { margin: 0; opacity: .7; }
+    #install { margin-top: 24px; padding: 12px 20px; font-size: 1rem; border: 0; border-radius: 12px; background: #4f46e5; color: #fff; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>안녕하세요 👋</h1>
+    <p>PWA 테스트 페이지입니다.</p>
+    <button id="install" hidden>홈 화면에 추가</button>
+  </main>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+    }
+    // Android Chrome: 설치 버튼 노출
+    let deferredPrompt;
+    const btn = document.getElementById('install');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      btn.hidden = false;
+    });
+    btn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      btn.hidden = true;
+    });
+    window.addEventListener('appinstalled', () => { btn.hidden = true; });
+  </script>
+</body>
+</html>
