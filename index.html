@@ -26,7 +26,8 @@
     main { text-align: center; padding: 24px; }
     h1 { font-size: 2.5rem; margin: 0 0 8px; }
     p { margin: 0; opacity: .7; }
-    #install { margin-top: 24px; padding: 12px 20px; font-size: 1rem; border: 0; border-radius: 12px; background: #4f46e5; color: #fff; }
+    .guide { margin-top: 20px; font-size: .95rem; line-height: 1.5; opacity: .85; }
+    #install, #external { margin-top: 24px; padding: 12px 20px; font-size: 1rem; border: 0; border-radius: 12px; background: #4f46e5; color: #fff; }
   </style>
 </head>
 <body>
@@ -34,8 +35,48 @@
     <h1>안녕하세요 👋</h1>
     <p>PWA 테스트 페이지입니다.</p>
     <button id="install" hidden>홈 화면에 추가</button>
+    <p id="guide" class="guide" hidden></p>
+    <button id="external" hidden>외부 브라우저로 열기</button>
   </main>
   <script>
+    // 인앱 브라우저(카카오톡 등)는 PWA 설치를 지원하지 않으므로 외부 브라우저로 보낸다.
+    (function () {
+      const ua = navigator.userAgent;
+      const isAndroid = /Android/i.test(ua);
+      const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const isKakao = /KAKAOTALK/i.test(ua);
+      const isInApp = isKakao || /NAVER\(inapp|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp|; wv\)/i.test(ua);
+      const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+      const guide = document.getElementById('guide');
+      const extBtn = document.getElementById('external');
+      const url = location.href;
+
+      function openExternal() {
+        if (isKakao) {
+          location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url);
+        } else if (isAndroid) {
+          location.href = 'intent://' + url.replace(/^https?:\/\//, '') +
+            '#Intent;scheme=https;package=com.android.chrome;end';
+        }
+      }
+
+      if (isInApp) {
+        guide.hidden = false;
+        guide.textContent = isIOS
+          ? '앱 설치는 Safari에서만 가능해요. 오른쪽 아래 ⋯ 메뉴에서 "다른 브라우저로 열기"를 눌러주세요.'
+          : '앱 설치는 Chrome에서만 가능해요. 아래 버튼을 눌러 Chrome으로 열어주세요.';
+        if (isKakao || isAndroid) {
+          extBtn.hidden = false;
+          extBtn.addEventListener('click', openExternal);
+          openExternal(); // 자동 이동 시도
+        }
+      } else if (isIOS && !isStandalone) {
+        // iOS Safari는 설치 버튼 이벤트가 없어 안내 문구로 대체
+        guide.hidden = false;
+        guide.textContent = '공유 버튼(□↑) → "홈 화면에 추가"를 누르면 앱으로 설치돼요.';
+      }
+    })();
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
     }
