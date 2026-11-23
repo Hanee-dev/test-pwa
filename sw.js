@@ -1,5 +1,5 @@
 // 캐시 버전: 파일을 바꾸면 이 값을 올려야 폰에 새 버전이 반영됩니다.
-const CACHE = 'pwa-test-v3';
+const CACHE = 'pwa-test-v4';
 const ASSETS = [
   './',
   './index.html',

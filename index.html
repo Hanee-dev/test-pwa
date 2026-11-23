@@ -62,11 +62,14 @@
       const url = location.href;
 
       function openExternal() {
-        if (isKakao) {
-          location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url);
-        } else if (isAndroid) {
+        // 안드로이드: 기본 브라우저(네이버 앱 등)가 아니라 Chrome을 직접 지정해서 연다.
+        // Chrome이 없으면 browser_fallback_url로 기본 브라우저에서 열림.
+        if (isAndroid) {
           location.href = 'intent://' + url.replace(/^https?:\/\//, '') +
-            '#Intent;scheme=https;package=com.android.chrome;end';
+            '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' +
+            encodeURIComponent(url) + ';end';
+        } else if (isKakao) {
+          location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url);
         }
       }
 
