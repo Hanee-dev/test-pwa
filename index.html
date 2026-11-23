@@ -44,12 +44,13 @@
   </dialog>
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }));
+      // 설치 이벤트가 최대한 빨리 오도록 load를 기다리지 않고 바로 등록
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
     }
 
     (function () {
       const ua = navigator.userAgent;
-      const url = location.href;
+      const url = location.href.split('#')[0];
       const isAndroid = /Android/i.test(ua);
       const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       const isKakao = /KAKAOTALK/i.test(ua);
@@ -68,18 +69,33 @@
       function openChrome() {
         location.href = 'intent://' + url.replace(/^https?:\/\//, '') +
           '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' +
-          encodeURIComponent(url) + ';end';
+          encodeURIComponent(url + '#nochrome') + ';end';
       }
+
+      // 카카오톡(안드로이드) 인앱 화면: 열리자마자 Chrome으로 이동
+      // Chrome이 없어 fallback으로 다시 열린 경우(#nochrome)에는 반복하지 않음
+      if (isAndroid && isKakao && location.hash !== '#nochrome') openChrome();
 
       let deferredPrompt = null;
       window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
+      // 클릭 시점에 아직 설치 이벤트가 안 왔으면 잠깐 기다림 (첫 클릭에 바로 설치 창이 뜨도록)
+      function waitForPrompt(ms) {
+        if (deferredPrompt) return Promise.resolve(deferredPrompt);
+        return new Promise((resolve) => {
+          const onEvt = () => { clearTimeout(t); resolve(deferredPrompt); };
+          const t = setTimeout(() => { window.removeEventListener('beforeinstallprompt', onEvt); resolve(null); }, ms);
+          window.addEventListener('beforeinstallprompt', onEvt, { once: true });
+        });
+      }
       window.addEventListener('appinstalled', () => { btn.hidden = true; });
 
       btn.addEventListener('click', async () => {
         // 1) 브라우저가 설치를 지원하면 바로 설치 창
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          await deferredPrompt.userChoice;
+        const canWait = isAndroid && !isWebView && 'BeforeInstallPromptEvent' in window;
+        const p = canWait ? await waitForPrompt(3000) : deferredPrompt;
+        if (p) {
+          p.prompt();
+          await p.userChoice;
           deferredPrompt = null;
           return;
         }
