@@ -45,7 +45,17 @@
       const isAndroid = /Android/i.test(ua);
       const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       const isKakao = /KAKAOTALK/i.test(ua);
-      const isInApp = isKakao || /NAVER\(inapp|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp|; wv\)/i.test(ua);
+      // 안드로이드에서 진짜 Chrome이 아니면(웹뷰·네이버·삼성인터넷 등) 모두 인앱으로 간주
+      const isAndroidChrome = isAndroid && /Chrome\//.test(ua) &&
+        !/; wv\)|Version\/\d|NAVER|KAKAOTALK|SamsungBrowser|Whale|EdgA|OPR|DaumApps|Instagram|FB/i.test(ua);
+      const isInApp = isKakao || (isAndroid && !isAndroidChrome) ||
+        /NAVER\(inapp|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp/i.test(ua);
+      if (new URLSearchParams(location.search).has('debug')) {
+        const d = document.createElement('pre');
+        d.style.cssText = 'white-space:pre-wrap;font-size:11px;text-align:left;opacity:.6';
+        d.textContent = ua + '\ninApp=' + isInApp;
+        document.querySelector('main').append(d);
+      }
       const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
       const guide = document.getElementById('guide');
       const extBtn = document.getElementById('external');
@@ -78,7 +88,7 @@
     })();
 
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }));
     }
     // Android Chrome: 설치 버튼 노출
     let deferredPrompt;
